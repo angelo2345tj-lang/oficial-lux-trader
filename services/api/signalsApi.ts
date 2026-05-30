@@ -63,16 +63,22 @@ function shouldTryLocalFallback(
 ): boolean {
   if (result?.status === 'OK' && result.signal) return false;
   const code = normalizeBlockReasonCode(result?.blockReason);
-  // Allow fallback for PROVIDER_ERROR since candles may still be available
-  // Only block fallback for truly unrecoverable errors
+  // Always allow fallback for binance symbols (crypto has public data)
+  // This ensures signals can be generated even when institutional API fails
+  const provider = getProviderForSymbol(symbol);
+  if (provider === 'binance') {
+    console.log('[LOCAL FALLBACK ACTIVE] Binance symbol detected, enabling local analysis');
+    return true;
+  }
+  // For other providers, only allow fallback for recoverable errors
   if (
     code === 'MARKET_CLOSED' ||
     code === 'NO_CONSENSUS'
   ) {
     return false;
   }
-  // Try fallback if provider is binance (crypto has public data)
-  return getProviderForSymbol(symbol) === 'binance';
+  // Allow fallback for PROVIDER_ERROR, NO_DATA, etc.
+  return true;
 }
 
 function reviveSignal(raw: TradeSignal | null): TradeSignal | null {
@@ -296,7 +302,7 @@ async function analyzeCentralized(
   console.log('[Lux:Analyze] shouldTryLocalFallback=', shouldFallback, ' symbol=', body.symbol, ' api.blockReason=', api?.blockReason, ' api.snapshotId=', api?.snapshotId);
 
   if (shouldFallback) {
-    console.log('[Lux:Analyze] API failed, attempting local fallback');
+    console.log('[LOCAL FALLBACK ACTIVE] API failed, switching to local analysis with Binance data');
     console.log('[DEBUG] candles disponíveis para fallback local - symbol=', body.symbol, ' timeframe=', body.timeframe);
     const local = await analyzeLocal(body);
     console.log('[DEBUG] resultado local fallback - status=', local.status, ' blockReason=', local.blockReason, ' signal=', !!local.signal);
@@ -312,11 +318,11 @@ async function analyzeCentralized(
     }
     if (local.status === 'OK' && local.signal) {
       console.log(
-        `[Lux:Analyze] local-fallback SUCCESS - symbol=${body.symbol} conf=${local.confidence ?? 0}% (api.blockReason=${api?.blockReason ?? 'null'})`
+        `[LOCAL FALLBACK SUCCESS] symbol=${body.symbol} conf=${local.confidence ?? 0}% dir=${local.signal.type} (api.blockReason=${api?.blockReason ?? 'null'})`
       );
       return { ...local, dataSource: 'local-fallback' };
     }
-    console.log('[Lux:Analyze] local-fallback FAILED - local.status=', local.status, ' local.blockReason=', local.blockReason);
+    console.log('[LOCAL FALLBACK FAILED] local.status=', local.status, ' local.blockReason=', local.blockReason);
   }
 
   if (api) {

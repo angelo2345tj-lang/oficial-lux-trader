@@ -36,6 +36,15 @@ async function fetchFromProvider(
   const candles = await provider.fetchCandles(sym, timeframe, limit);
   candleCache.set(sym, timeframe, candles, provider.id);
   logger.info(`[Lux:Realtime] candles ${sym} TF${timeframe} via ${provider.id}`, 'marketData');
+  console.log('[DEBUG-PROVIDER-FETCH]', {
+    provider: provider.id,
+    symbol: sym,
+    timeframe,
+    requestedLimit: limit,
+    returnedCandles: candles.length,
+    firstCandle: candles[0],
+    lastCandle: candles[candles.length - 1],
+  });
   return candles;
 }
 

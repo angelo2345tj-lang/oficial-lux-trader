@@ -586,6 +586,18 @@ export class InstitutionalSignalEngine {
     const blockReason = blockReasonForContext(normalizeBlockReason(reason), candleCount);
     InstitutionalSignalEngine.logBlocked(symbol, timeframe, blockReason, candleCount);
     invalidateSymbolCache(symbol);
+
+    console.log('[DEBUG-CANDLES]', {
+      symbol,
+      timeframe,
+      candlesLength: snapshot?.primaryCandles?.length ?? 0,
+      firstCandle: snapshot?.primaryCandles?.[0],
+      lastCandle: snapshot?.primaryCandles?.[(snapshot?.primaryCandles?.length ?? 0) - 1],
+      providerId: providerId ?? snapshot?.providerId ?? 'none',
+      originalReason: reason,
+      normalizedBlockReason: blockReason,
+    });
+
     const payload: InstitutionalSignalPayload = {
       symbol,
       timeframe,

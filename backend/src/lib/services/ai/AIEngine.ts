@@ -175,10 +175,17 @@ const GEMINI_TIMEOUT_MS = 2_000;
 
 async function geminiValidate(ctx: AIContext): Promise<AIValidation | null> {
   const apiKey = getApiKey();
-  if (!apiKey) return null;
+  if (!apiKey) {
+    console.log('[AI PROVIDER] No API key configured, using local AI');
+    return null;
+  }
 
   const { symbol, timeframe, direction, confluence, rsiValue, mtfAligned, structure, liquidity, smc, candleAnalysis, confidence } = ctx;
   const type = direction === 'BUY' ? 'CALL' : 'PUT';
+
+  console.log('[AI PROVIDER] Google Gemini');
+  console.log('[AI MODEL] gemini-2.0-flash');
+  console.log('[AI REQUEST] symbol=', symbol, 'timeframe=', timeframe, 'direction=', direction);
 
   const prompt = `Analista institucional. Avalie setup REAL em candles (sem garantir lucro).
 
@@ -206,16 +213,25 @@ JSON apenas: {"approve":bool,"winProbability":0-95,"confidence":0-100,"reason":"
       setTimeout(() => resolve(null), GEMINI_TIMEOUT_MS)
     );
     const response = await Promise.race([geminiCall, timeout]);
-    if (!response) return null;
+    if (!response) {
+      console.log('[AI TIMEOUT] Gemini request timed out after', GEMINI_TIMEOUT_MS, 'ms');
+      return null;
+    }
 
     const text = response.text?.trim() ?? '';
+    console.log('[AI RESPONSE] raw text length=', text.length);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
+    if (!jsonMatch) {
+      console.log('[AI ERROR] No JSON found in Gemini response');
+      return null;
+    }
 
     const parsed = JSON.parse(jsonMatch[0]);
     const winProbability = clamp(Number(parsed.winProbability) || 50, 0, 95);
     const conf = clamp(Number(parsed.confidence) || 50, 0, 100);
     const approve = Boolean(parsed.approve) && winProbability >= 55;
+
+    console.log('[AI SUCCESS] Gemini validated - approved=', approve, 'winProbability=', winProbability, 'confidence=', conf);
 
     return {
       approved: approve,
@@ -225,7 +241,13 @@ JSON apenas: {"approve":bool,"winProbability":0-95,"confidence":0-100,"reason":"
       source: 'gemini',
       adjustments: [`Gemini: ${winProbability}%`, ...(confidence?.factors.slice(0, 2) ?? [])],
     };
-  } catch {
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.log('[AI ERROR] Gemini failed:', err.message);
+    console.log('[AI ERROR] Stack:', err.stack);
+    if (err.message.includes('Permission denied') || err.message.includes('high demand')) {
+      console.log('[AI ERROR] Model overloaded - falling back to local AI');
+    }
     return null;
   }
 }
@@ -237,9 +259,17 @@ export async function validateWithAI(
 ): Promise<AIValidation> {
   if (!options?.skipRemote) {
     const gemini = await geminiValidate(ctx);
-    if (gemini) return gemini;
+    if (gemini) {
+      console.log('[AI SOURCE] Using Gemini validation');
+      return gemini;
+    }
+    console.log('[AI SOURCE] Gemini failed or skipped, using local AI');
+  } else {
+    console.log('[AI SOURCE] Remote AI skipped, using local AI');
   }
-  return localAIValidate(ctx);
+  const local = localAIValidate(ctx);
+  console.log('[AI SOURCE] Local AI result - approved=', local.approved, 'winProbability=', local.winProbability, 'confidence=', local.confidence);
+  return local;
 }
 
 function clamp(v: number, min: number, max: number) {

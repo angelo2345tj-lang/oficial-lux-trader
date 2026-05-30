@@ -35,6 +35,13 @@ export async function resolveSnapshotPrimaryCandles(
     console.log(
       `[Lux:SnapshotBuild] symbol=${sym} timeframe=${requestedTimeframe} candles=${candles.length} source=fetch`
     );
+    console.log('[DEBUG-CANDLES-FETCH]', {
+      symbol: sym,
+      timeframe: requestedTimeframe,
+      candlesLength: candles.length,
+      firstCandle: candles[0],
+      lastCandle: candles[candles.length - 1],
+    });
     return {
       candles,
       requestedTimeframe,
@@ -60,6 +67,13 @@ export async function resolveSnapshotPrimaryCandles(
     console.log(
       `[Lux:SnapshotBuild] failed symbol=${sym} timeframe=${requestedTimeframe} cache=${cacheCandles} err=${msg}`
     );
+    console.log('[DEBUG-CANDLES-ERROR]', {
+      symbol: sym,
+      timeframe: requestedTimeframe,
+      cacheCandles,
+      errorMessage: msg,
+      errorType: e instanceof Error ? e.constructor.name : typeof e,
+    });
     throw e;
   }
 }
