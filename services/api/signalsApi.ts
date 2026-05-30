@@ -63,13 +63,15 @@ function shouldTryLocalFallback(
 ): boolean {
   if (result?.status === 'OK' && result.signal) return false;
   const code = normalizeBlockReasonCode(result?.blockReason);
+  // Allow fallback for PROVIDER_ERROR since candles may still be available
+  // Only block fallback for truly unrecoverable errors
   if (
-    code === 'NO_PROVIDER' ||
     code === 'MARKET_CLOSED' ||
     code === 'NO_CONSENSUS'
   ) {
     return false;
   }
+  // Try fallback if provider is binance (crypto has public data)
   return getProviderForSymbol(symbol) === 'binance';
 }
 
@@ -285,7 +287,11 @@ async function analyzeCentralized(
     return api;
   }
 
-  if (shouldTryLocalFallback(api, body.symbol)) {
+  // Check if local fallback should be attempted
+  const shouldFallback = shouldTryLocalFallback(api, body.symbol);
+  console.log('[TRACE] analyzeCentralized shouldTryLocalFallback=', shouldFallback, ' symbol=', body.symbol, ' api.blockReason=', api?.blockReason);
+
+  if (shouldFallback) {
     console.log('[TRACE] analyzeCentralized trying local fallback');
     const local = await analyzeLocal(body);
     if (generation !== analyzeGeneration) {
@@ -304,6 +310,7 @@ async function analyzeCentralized(
       );
       return { ...local, dataSource: 'local-fallback' };
     }
+    console.log('[TRACE] analyzeCentralized local fallback returned no signal - local.status=', local.status, ' local.blockReason=', local.blockReason);
   }
 
   if (api) {
