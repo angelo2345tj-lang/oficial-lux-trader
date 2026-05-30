@@ -1,0 +1,7 @@
+{
+  "name": "Lux Trader FX",
+  "description": "Terminal profissional de análise quantitativa Lux Trader FX com Gráficos em Tempo Real e Gestão de Risco.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "Lux Trader FX",
+  "short_name": "LuxFX",
+  "description": "A IA dos Traders — Terminal Forex Elite",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "portrait",
+  "background_color": "#07090E",
+  "theme_color": "#07090E",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["finance", "business"],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Terminal",
+      "short_name": "Terminal",
+      "url": "/",
+      "icons": [{ "src": "/logo.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ],
+  "icons": [
+    { "src": "/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "screenshots": []
+}

@@ -1,0 +1,327 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================
+   LUX TRADER FX
+   PROFESSIONAL UI SYSTEM
+========================= */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background: #07090e;
+  color: white;
+  font-family: Inter, sans-serif;
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* SCROLL */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e3a8a;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050816;
+}
+
+/* GLOBAL */
+
+body {
+  background:
+    radial-gradient(circle at top, #0f172a 0%, #050816 60%);
+}
+
+/* APP CONTAINER */
+
+.app-container {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* DASHBOARD */
+
+.dashboard-container {
+  width: 100%;
+  padding: 18px;
+  overflow-x: hidden;
+}
+
+/* CARDS */
+
+.signal-card,
+.card,
+.dashboard-card {
+  width: 100%;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  box-shadow:
+    0 0 25px rgba(59, 130, 246, 0.08),
+    inset 0 0 10px rgba(255,255,255,0.02);
+  backdrop-filter: blur(14px);
+  transition: 0.3s;
+}
+
+.signal-card:hover,
+.card:hover,
+.dashboard-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+/* BUTTONS */
+
+button {
+  border: none;
+  outline: none;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+.operation-buttons {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.operation-buttons button {
+  flex: 1;
+  min-height: 52px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* BUY */
+
+.buy-button,
+.call-button {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+}
+
+/* SELL */
+
+.sell-button,
+.put-button {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+}
+
+/* SHARE */
+
+.share-button {
+  width: 100%;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+/* MODALS */
+
+.modal-content {
+  width: 100%;
+  max-width: 520px;
+  border-radius: 22px;
+  background: #0f172a;
+  padding: 20px;
+}
+
+/* CHART */
+
+.chart-container {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 18px;
+}
+
+/* HISTORY */
+
+.history-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* TABLE */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+td,
+th {
+  padding: 12px;
+  text-align: center;
+}
+
+/* ANIMATIONS */
+
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 0 rgba(59,130,246,0.1);
+  }
+
+  50% {
+    box-shadow: 0 0 25px rgba(59,130,246,0.25);
+  }
+
+  100% {
+    box-shadow: 0 0 0 rgba(59,130,246,0.1);
+  }
+}
+
+.glow {
+  animation: pulseGlow 2s infinite;
+}
+
+/* NO SCROLLBAR */
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* SAFE AREA */
+
+/* Capacitor / PWA native shell */
+html.lux-native,
+html.lux-pwa {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+html.lux-native body {
+  touch-action: manipulation;
+}
+
+html.lux-native * {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+/* MOBILE */
+
+@media (max-width: 768px) {
+
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .dashboard-container {
+    padding: 12px;
+  }
+
+  .operation-buttons {
+    flex-direction: column;
+  }
+
+  .operation-buttons button {
+    width: 100%;
+  }
+
+  .signal-card,
+  .card,
+  .dashboard-card {
+    border-radius: 16px;
+  }
+
+  .modal-content {
+    max-width: 100%;
+    border-radius: 18px;
+    padding: 16px;
+  }
+
+  .chart-container {
+    overflow-x: auto;
+  }
+
+  table {
+    min-width: 600px;
+  }
+}
+
+/* SMALL MOBILE */
+
+@media (max-width: 480px) {
+
+  .dashboard-container {
+    padding: 10px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-size: 90%;
+  }
+
+  button {
+    font-size: 14px;
+  }
+
+  .modal-content {
+    padding: 14px;
+  }
+}
+/* REMOVER BOTÕES OPERAÇÃO */
+
+.operation-buttons {
+  display: none !important;
+}
+html,
+body {
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img {
+  max-width: 100%;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* INSTITUTIONAL TERMINAL */
+.institutional-terminal {
+  background: linear-gradient(180deg, rgba(5, 8, 22, 0.95) 0%, rgba(2, 2, 4, 1) 100%);
+}
+
+.institutional-terminal .glass-morphism {
+  backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.06), 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.text-glow {
+  text-shadow: 0 0 20px rgba(59, 130, 246, 0.45);
+}

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">binance.com</domain>
+        <domain includeSubdomains="true">stream.binance.com</domain>
+        <domain includeSubdomains="true">lux-trader-api.onrender.com</domain>
+        <domain includeSubdomains="true">oficial-lux-trader.vercel.app</domain>
+    </domain-config>
+</network-security-config>
