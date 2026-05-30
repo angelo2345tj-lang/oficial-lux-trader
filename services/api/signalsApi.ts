@@ -176,19 +176,18 @@ async function requestInstitutionalAnalyze(
   generation: number,
   origin: AnalyzeOrigin
 ): Promise<SignalResult | null> {
-  console.log('[TRACE] requestInstitutionalAnalyze called - payload.symbol=', payload.symbol, ' generation=', generation, ' origin=', origin, ' API_ENABLED=', API_ENABLED);
+  console.log('[Lux:API] requestInstitutionalAnalyze - symbol=', payload.symbol, ' timeframe=', payload.timeframe, ' API_ENABLED=', API_ENABLED);
   if (!API_ENABLED) {
-    console.log('[TRACE] requestInstitutionalAnalyze API NOT enabled, returning null');
+    console.log('[Lux:API] API NOT enabled, returning null for local fallback');
     return null;
   }
 
   logAnalyzeInput(origin, payload.symbol, payload.timeframe, `mode=${payload.timingMode}`);
 
   const dedupKey = `analyze:${payload.symbol}:${payload.timeframe}:${payload.timingMode}`;
-  console.log('[TRACE] requestInstitutionalAnalyze dedupKey=', dedupKey);
 
   return safeApiCallOptional(async () => {
-    console.log('[TRACE] requestInstitutionalAnalyze calling apiFetch');
+    console.log('[Lux:API] calling institutional API endpoint');
     const res = await withRequestDedup(dedupKey, (signal) =>
       apiFetch(endpoints.signalsAnalyze(), {
         method: 'POST',
@@ -211,10 +210,10 @@ async function requestInstitutionalAnalyze(
         signal,
       })
     );
-    console.log('[TRACE] requestInstitutionalAnalyze apiFetch returned - res.ok=', res.ok, ' res.status=', res.status);
+    console.log('[Lux:API] API response - res.ok=', res.ok, ' res.status=', res.status);
 
     if (generation !== analyzeGeneration) {
-      console.log('[TRACE] requestInstitutionalAnalyze stale response discarded - generation mismatch');
+      console.log('[Lux:API] stale response discarded - generation mismatch');
       console.log('[Lux:Signal] stale analyze response discarded', payload.symbol);
       return null;
     }
@@ -223,18 +222,19 @@ async function requestInstitutionalAnalyze(
       success?: boolean;
       message?: string;
       snapshotId?: string;
+      candleCount?: number;
     };
-    console.log('[TRACE] requestInstitutionalAnalyze data parsed - status=', data.status, ' blockReason=', data.blockReason);
+    console.log('[Lux:API] API data - status=', data.status, ' blockReason=', data.blockReason, ' snapshotId=', data.snapshotId, ' candleCount=', data.candleCount);
 
     if (!res.ok) {
       const message = data.message || data.blockReason || `API ${res.status}`;
-      console.log('[TRACE] requestInstitutionalAnalyze API error - message=', message);
+      console.log('[Lux:API] API error - message=', message);
       throw new Error(message);
     }
 
     const mapped = mapApiToSignalResult(data, payload.symbol);
     console.log(
-      `[Lux:Signal] institutional ${payload.symbol} snap=${mapped.snapshotId ?? '—'} status=${mapped.status} conf=${mapped.confidence ?? 0}%`
+      `[Lux:API] institutional result - symbol=${payload.symbol} snap=${mapped.snapshotId ?? '—'} status=${mapped.status} conf=${mapped.confidence ?? 0}% blockReason=${mapped.blockReason ?? 'none'} candleCount=${data.candleCount ?? 'N/A'}`
     );
     return mapped;
   });
@@ -244,15 +244,14 @@ async function analyzeCentralized(
   body: NormalizedAnalyzePayload,
   origin: AnalyzeOrigin
 ): Promise<SignalResult> {
-  console.log('[TRACE] analyzeCentralized called - body.symbol=', body.symbol, ' origin=', origin, ' API_ENABLED=', API_ENABLED);
+  console.log('[Lux:Analyze] analyzeCentralized - symbol=', body.symbol, ' timeframe=', body.timeframe, ' API_ENABLED=', API_ENABLED);
   const generation = ++analyzeGeneration;
-  console.log('[TRACE] analyzeCentralized generation=', generation);
 
   if (!API_ENABLED) {
-    console.log('[TRACE] analyzeCentralized API NOT enabled, using local engine');
+    console.log('[Lux:Analyze] API NOT enabled, using local engine');
     const local = await analyzeLocal(body);
     if (generation !== analyzeGeneration) {
-      console.log('[TRACE] analyzeCentralized local superseded - generation mismatch');
+      console.log('[Lux:Analyze] local superseded - generation mismatch');
       return {
         signal: null,
         blockReason: 'ANALYSIS_SUPERSEDED',
@@ -262,17 +261,17 @@ async function analyzeCentralized(
       };
     }
     console.log(
-      `[Lux:Signal] local-engine ${body.symbol} status=${local.status} conf=${local.confidence ?? 0}%`
+      `[Lux:Analyze] local-engine result - symbol=${body.symbol} status=${local.status} conf=${local.confidence ?? 0}%`
     );
     return local;
   }
 
-  console.log('[TRACE] analyzeCentralized calling requestInstitutionalAnalyze');
+  console.log('[Lux:Analyze] calling institutional API');
   const api = await requestInstitutionalAnalyze(body, generation, origin);
-  console.log('[TRACE] analyzeCentralized API returned - status=', api?.status, ' blockReason=', api?.blockReason);
+  console.log('[Lux:Analyze] API returned - status=', api?.status, ' blockReason=', api?.blockReason);
 
   if (generation !== analyzeGeneration) {
-    console.log('[TRACE] analyzeCentralized API superseded - generation mismatch');
+    console.log('[Lux:Analyze] API superseded - generation mismatch');
     return {
       signal: null,
       blockReason: 'ANALYSIS_SUPERSEDED',
@@ -283,19 +282,19 @@ async function analyzeCentralized(
   }
 
   if (api?.status === 'OK' && api.signal) {
-    console.log('[TRACE] analyzeCentralized API OK with signal, returning');
+    console.log('[Lux:Analyze] API OK with signal, returning');
     return api;
   }
 
   // Check if local fallback should be attempted
   const shouldFallback = shouldTryLocalFallback(api, body.symbol);
-  console.log('[TRACE] analyzeCentralized shouldTryLocalFallback=', shouldFallback, ' symbol=', body.symbol, ' api.blockReason=', api?.blockReason);
+  console.log('[Lux:Analyze] shouldTryLocalFallback=', shouldFallback, ' symbol=', body.symbol, ' api.blockReason=', api?.blockReason, ' api.snapshotId=', api?.snapshotId);
 
   if (shouldFallback) {
-    console.log('[TRACE] analyzeCentralized trying local fallback');
+    console.log('[Lux:Analyze] API failed, attempting local fallback');
     const local = await analyzeLocal(body);
     if (generation !== analyzeGeneration) {
-      console.log('[TRACE] analyzeCentralized local fallback superseded - generation mismatch');
+      console.log('[Lux:Analyze] local fallback superseded - generation mismatch');
       return {
         signal: null,
         blockReason: 'ANALYSIS_SUPERSEDED',
@@ -306,19 +305,19 @@ async function analyzeCentralized(
     }
     if (local.status === 'OK' && local.signal) {
       console.log(
-        `[Lux:Signal] local-fallback OK ${body.symbol} conf=${local.confidence ?? 0}% (api=${api?.blockReason ?? 'null'})`
+        `[Lux:Analyze] local-fallback SUCCESS - symbol=${body.symbol} conf=${local.confidence ?? 0}% (api.blockReason=${api?.blockReason ?? 'null'})`
       );
       return { ...local, dataSource: 'local-fallback' };
     }
-    console.log('[TRACE] analyzeCentralized local fallback returned no signal - local.status=', local.status, ' local.blockReason=', local.blockReason);
+    console.log('[Lux:Analyze] local-fallback FAILED - local.status=', local.status, ' local.blockReason=', local.blockReason);
   }
 
   if (api) {
-    console.log('[TRACE] analyzeCentralized returning API result (no signal)');
+    console.log('[Lux:Analyze] returning API result (no signal) - blockReason=', api.blockReason);
     return api;
   }
 
-  console.log('[TRACE] analyzeCentralized returning NO_DATA - API unavailable');
+  console.log('[Lux:Analyze] returning NO_DATA - API unavailable');
   return {
     signal: null,
     status: 'NO_DATA',
@@ -343,10 +342,10 @@ export function cancelPendingAnalysis(symbol?: string, timeframe?: string): void
 export async function analyzeSignal(
   payload: AnalyzePayload
 ): Promise<SignalResult & { success?: boolean; message?: string }> {
-  console.log('[TRACE] analyzeSignal called - payload.symbol=', payload.symbol);
+  console.log('[Lux:Analyze] analyzeSignal - symbol=', payload.symbol, ' timeframe=', payload.timeframe);
   const normalized = normalizeAnalyzePayload(payload);
   if (!normalized.ok) {
-    console.log('[TRACE] analyzeSignal normalized FAILED - message=', normalized.message);
+    console.log('[Lux:Analyze] normalized FAILED - message=', normalized.message);
     return {
       signal: null,
       blockReason: normalized.message,
@@ -357,17 +356,15 @@ export async function analyzeSignal(
     };
   }
 
-  console.log('[TRACE] analyzeSignal normalized OK');
   const body = normalized.payload;
   const origin = resolveAnalyzeOrigin(payload.analyzeOrigin);
   const key = analyzeKey(body);
-  console.log('[TRACE] analyzeSignal key=', key, ' origin=', origin);
+  console.log('[Lux:Analyze] cache key=', key, ' origin=', origin);
 
-  console.log('[TRACE] analyzeSignal calling enqueueAnalysis with origin=', origin);
   const result = await enqueueAnalysis(key, () => analyzeCentralized(body, origin), origin);
 
   if (!result) {
-    console.log('[TRACE] analyzeSignal enqueueAnalysis returned null - ANALYSIS_BUSY');
+    console.log('[Lux:Analyze] enqueueAnalysis returned null - ANALYSIS_BUSY');
     return {
       signal: null,
       blockReason: 'ANALYSIS_BUSY',
@@ -376,7 +373,7 @@ export async function analyzeSignal(
     };
   }
 
-  console.log('[TRACE] analyzeSignal returning result - status=', result.status, ' blockReason=', result.blockReason);
+  console.log('[Lux:Analyze] final result - symbol=', payload.symbol, ' status=', result.status, ' blockReason=', result.blockReason, ' dataSource=', result.dataSource);
   return result;
 }
 
