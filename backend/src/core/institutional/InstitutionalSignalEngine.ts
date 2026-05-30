@@ -118,6 +118,13 @@ export class InstitutionalSignalEngine {
 
     const marketClosed = checkRetailMarketClosed(symbol);
     if (marketClosed.closed) {
+      console.log('[DEBUG-INSTITUTIONAL]', {
+        action: 'MARKET_CLOSED',
+        symbol,
+        timeframe,
+        timingMode,
+        blockReason: marketClosed.blockReason,
+      });
       invalidateSymbolCache(symbol);
       const payload = InstitutionalSignalEngine.noDataPayload(
         symbol,
@@ -140,6 +147,13 @@ export class InstitutionalSignalEngine {
 
     const providerCheck = checkProviderAvailability(symbol);
     if (!providerCheck.available) {
+      console.log('[DEBUG-INSTITUTIONAL]', {
+        action: 'PROVIDER_NOT_AVAILABLE',
+        symbol,
+        timeframe,
+        timingMode,
+        providerCheck,
+      });
       clearMarketDataForSymbol(symbol);
       invalidateSymbolCache(symbol);
       const payload = InstitutionalSignalEngine.noDataPayload(
@@ -163,6 +177,13 @@ export class InstitutionalSignalEngine {
     }
 
     if (!input.streamLive) {
+      console.log('[DEBUG-INSTITUTIONAL]', {
+        action: 'STREAM_LIVE_FALSE',
+        symbol,
+        timeframe,
+        timingMode,
+        streamLive: input.streamLive,
+      });
       const payload = InstitutionalSignalEngine.noDataPayload(
         symbol,
         timeframe,
@@ -184,7 +205,22 @@ export class InstitutionalSignalEngine {
 
     let snapshot: MarketSnapshot;
     try {
+      console.log('[DEBUG-INSTITUTIONAL]', {
+        action: 'MarketSnapshotService.build_CALL',
+        symbol,
+        timeframe,
+        timingMode,
+      });
       snapshot = await MarketSnapshotService.build(symbol, timeframe);
+      console.log('[DEBUG-INSTITUTIONAL]', {
+        action: 'MarketSnapshotService.build_SUCCESS',
+        symbol,
+        timeframe,
+        snapshotId: snapshot.snapshotId,
+        primaryCandlesLength: snapshot.primaryCandles.length,
+        providerId: snapshot.providerId,
+        candleSource: snapshot.candleSource,
+      });
     } catch (e) {
       const msg =
         e instanceof MarketDataError
@@ -192,6 +228,16 @@ export class InstitutionalSignalEngine {
           : e instanceof Error
             ? e.message
             : 'snapshot failed';
+      console.log('[DEBUG-INSTITUTIONAL]', {
+        action: 'MarketSnapshotService.build_ERROR',
+        symbol,
+        timeframe,
+        timingMode,
+        errorMessage: msg,
+        errorType: e instanceof Error ? e.constructor.name : typeof e,
+        errorStack: e instanceof Error ? e.stack : undefined,
+        originalError: e,
+      });
       clearMarketDataForSymbol(symbol);
       invalidateSymbolCache(symbol);
       const payload = InstitutionalSignalEngine.noDataPayload(
@@ -215,6 +261,15 @@ export class InstitutionalSignalEngine {
     }
 
     if (!snapshot.providerId) {
+      console.log('[DEBUG-INSTITUTIONAL]', {
+        action: 'SNAPSHOT_NO_PROVIDER_ID',
+        symbol,
+        timeframe,
+        timingMode,
+        snapshotId: snapshot.snapshotId,
+        providerId: snapshot.providerId,
+        providerCheckReason: providerCheck.reason,
+      });
       invalidateSymbolCache(symbol);
       const payload = InstitutionalSignalEngine.noDataPayload(
         symbol,

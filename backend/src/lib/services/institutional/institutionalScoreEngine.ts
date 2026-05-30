@@ -55,13 +55,26 @@ function componentTrend(
 ): number {
   const s = supreme.scores;
   const macroCap = Math.min(supreme.macroStrength, 100) * 0.35;
-  return clamp(
+  const raw =
     s.trendScore * 0.4 +
       supreme.mtfAlignmentScore * 100 * 0.25 +
       macroCap * 0.2 +
       (mtfAligned ? 10 : -5) +
-      ensembleScore * 0.1
-  );
+      ensembleScore * 0.1;
+  const result = clamp(raw);
+  
+  console.log('[DEBUG-SCORE-TREND]', {
+    trendScore: s.trendScore,
+    mtfAlignmentScore: supreme.mtfAlignmentScore,
+    macroStrength: supreme.macroStrength,
+    macroCap,
+    mtfAligned,
+    ensembleScore,
+    raw,
+    result,
+  });
+  
+  return result;
 }
 
 function validateDiversity(symbol: string, score: number): void {
@@ -103,6 +116,17 @@ export function computeOrganicConfidence(input: OrganicScoreInput): ScoreBreakdo
   } = input;
   const s = supreme.scores;
 
+  console.log('[DEBUG-SCORE-RAW]', {
+    symbol,
+    direction,
+    mtfAligned,
+    ensembleScore,
+    macroDirection: supreme.macroDirection,
+    macroStrength: supreme.macroStrength,
+    exhaustion: supreme.exhaustion,
+    fakeBreakout: supreme.fakeBreakout,
+  });
+
   const trend = componentTrend(supreme, mtfAligned, ensembleScore);
   const momentum = clamp(supreme.momentum);
   const reversal = directionalScore(supreme.reversalBull, supreme.reversalBear, direction);
@@ -116,6 +140,16 @@ export function computeOrganicConfidence(input: OrganicScoreInput): ScoreBreakdo
   const volume = clamp(s.volumeScore + (liquidity.sweepDetected ? 5 : 0));
   const volatility = clamp(100 - Math.abs(candleAnalysis.volatility - 50) * 1.05);
 
+  console.log('[DEBUG-SCORE-COMPONENTS]', {
+    symbol,
+    trend,
+    momentum,
+    reversal,
+    structureScore,
+    volume,
+    volatility,
+  });
+
   const w = SCORE_WEIGHTS;
   let raw =
     trend * w.trend +
@@ -125,11 +159,45 @@ export function computeOrganicConfidence(input: OrganicScoreInput): ScoreBreakdo
     volume * w.volume +
     volatility * w.volatility;
 
+  console.log('[DEBUG-SCORE-WEIGHTED]', {
+    symbol,
+    raw,
+    weights: w,
+    weighted: {
+      trend: trend * w.trend,
+      momentum: momentum * w.momentum,
+      reversal: reversal * w.reversal,
+      structure: structureScore * w.structure,
+      volume: volume * w.volume,
+      volatility: volatility * w.volatility,
+    },
+  });
+
   if (supreme.exhaustion) raw -= 6;
   if (supreme.fakeBreakout) raw -= 8;
   if (direction !== supreme.macroDirection) raw -= 4;
 
+  console.log('[DEBUG-SCORE-PENALTIES]', {
+    symbol,
+    rawAfterWeighted: raw,
+    exhaustion: supreme.exhaustion,
+    exhaustionPenalty: supreme.exhaustion ? -6 : 0,
+    fakeBreakout: supreme.fakeBreakout,
+    fakeBreakoutPenalty: supreme.fakeBreakout ? -8 : 0,
+    macroDirection: supreme.macroDirection,
+    macroDirectionPenalty: direction !== supreme.macroDirection ? -4 : 0,
+    rawAfterPenalties: raw,
+  });
+
   const finalConfidence = Math.round(clamp(raw, 41, 95));
+
+  console.log('[DEBUG-SCORE-FINAL]', {
+    symbol,
+    rawBeforeClamp: raw,
+    clampMin: 41,
+    clampMax: 95,
+    finalConfidence,
+  });
 
   const breakdown: ScoreBreakdown = {
     trend: Math.round(trend),

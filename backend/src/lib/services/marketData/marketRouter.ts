@@ -1,7 +1,7 @@
 import { BINANCE_SYMBOL_MAP } from './providers/binanceProvider';
 
 export type MarketCategory = 'crypto' | 'forex' | 'metal' | 'index' | 'equity' | 'unknown';
-export type MarketProviderId = 'binance' | 'twelvedata' | 'finnhub';
+export type MarketProviderId = 'binance' | 'twelvedata' | 'finnhub' | 'bybit' | 'coinbase';
 
 const FOREX = new Set([
   'EURUSD',
@@ -50,7 +50,7 @@ export function resolveProviderPriority(symbol: string): MarketProviderId[] {
   const cat = resolveMarketCategory(symbol);
   switch (cat) {
     case 'crypto':
-      return ['binance', 'twelvedata', 'finnhub'];
+      return ['binance', 'bybit', 'coinbase', 'twelvedata', 'finnhub'];
     case 'forex':
       return ['twelvedata', 'finnhub'];
     case 'metal':

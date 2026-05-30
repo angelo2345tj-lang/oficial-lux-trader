@@ -72,15 +72,68 @@ export const binanceProvider: MarketProvider = {
     }
     const interval = TF_MAP[timeframe] || '1h';
     const url = `${API}/klines?symbol=${binanceSym}&interval=${interval}&limit=${Math.min(limit, 1000)}`;
+    
+    console.log('[DEBUG-BINANCE]', {
+      action: 'fetchCandles_START',
+      symbol,
+      timeframe,
+      limit,
+      binanceSym,
+      interval,
+      url,
+    });
+
     const res = await fetchWithTimeout(url, undefined, 12_000);
+    
+    console.log('[DEBUG-BINANCE]', {
+      action: 'fetchCandles_RESPONSE',
+      url,
+      httpStatus: res.status,
+      httpStatusText: res.statusText,
+      ok: res.ok,
+    });
+
     if (!res.ok) {
+      const errorText = await res.text();
+      console.log('[DEBUG-BINANCE]', {
+        action: 'fetchCandles_ERROR',
+        httpStatus: res.status,
+        errorBody: errorText,
+      });
       throw new MarketDataError(`Binance HTTP ${res.status}`, 'FETCH_FAILED', symbol);
     }
     const data = await res.json();
+    
+    console.log('[DEBUG-BINANCE]', {
+      action: 'fetchCandles_DATA',
+      dataType: Array.isArray(data) ? 'array' : typeof data,
+      dataLength: Array.isArray(data) ? data.length : 'N/A',
+      rawData: data,
+    });
+
     if (!Array.isArray(data) || data.length === 0) {
+      console.log('[DEBUG-BINANCE]', {
+        action: 'fetchCandles_EMPTY',
+        dataType: typeof data,
+        dataValue: data,
+      });
       throw new MarketDataError('Binance retornou dados vazios', 'FETCH_FAILED', symbol);
     }
-    return parseKlines(data);
+    
+    const candles = parseKlines(data);
+    
+    console.log('[DEBUG-BINANCE]', {
+      action: 'fetchCandles_SUCCESS',
+      symbol,
+      timeframe,
+      candlesReturned: candles.length,
+      firstCandle: candles[0],
+      lastCandle: candles[candles.length - 1],
+      firstTimestamp: candles[0]?.timestamp,
+      lastTimestamp: candles[candles.length - 1]?.timestamp,
+    });
+    
+    return candles;
   },
 
   async fetchLastPrice(symbol: string): Promise<number> {

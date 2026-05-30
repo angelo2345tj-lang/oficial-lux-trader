@@ -53,6 +53,17 @@ export function computeInstitutionalConfidence(input: {
     mtfAgreement,
   } = input;
 
+  console.log('[DEBUG-SCORE-INSTITUTIONAL-INPUT]', {
+    symbol,
+    direction,
+    mtfAligned,
+    ensembleScore,
+    mtfAgreement,
+    regimeModifier: regime.modifier,
+    exhaustion: supreme.exhaustion,
+    fakeBreakout: supreme.fakeBreakout,
+  });
+
   const s = supreme.scores;
   const trend = clamp(
     s.trendScore * 0.38 +
@@ -68,6 +79,16 @@ export function computeInstitutionalConfidence(input: {
   const volume = clamp(s.volumeScore + (liquidity.sweepDetected ? 4 : 0));
   const volatility = normalizeVolatility(candles, 100 - Math.abs(candleAnalysis.volatility - 50) * 1.05);
 
+  console.log('[DEBUG-SCORE-INSTITUTIONAL-COMPONENTS]', {
+    symbol,
+    trend,
+    momentum,
+    reversal,
+    structureScore,
+    volume,
+    volatility,
+  });
+
   const w = SCORE_WEIGHTS;
   let raw =
     trend * w.trend +
@@ -77,11 +98,44 @@ export function computeInstitutionalConfidence(input: {
     volume * w.volume +
     volatility * w.volatility;
 
+  console.log('[DEBUG-SCORE-INSTITUTIONAL-WEIGHTED]', {
+    symbol,
+    raw,
+    weights: w,
+    weighted: {
+      trend: trend * w.trend,
+      momentum: momentum * w.momentum,
+      reversal: reversal * w.reversal,
+      structure: structureScore * w.structure,
+      volume: volume * w.volume,
+      volatility: volatility * w.volatility,
+    },
+  });
+
   raw += regime.modifier;
   if (supreme.exhaustion) raw -= 6;
   if (supreme.fakeBreakout) raw -= 8;
 
+  console.log('[DEBUG-SCORE-INSTITUTIONAL-PENALTIES]', {
+    symbol,
+    rawAfterWeighted: raw,
+    regimeModifier: regime.modifier,
+    exhaustion: supreme.exhaustion,
+    exhaustionPenalty: supreme.exhaustion ? -6 : 0,
+    fakeBreakout: supreme.fakeBreakout,
+    fakeBreakoutPenalty: supreme.fakeBreakout ? -8 : 0,
+    rawAfterPenalties: raw,
+  });
+
   const finalConfidence = Math.round(clamp(raw, 41, 94));
+
+  console.log('[DEBUG-SCORE-INSTITUTIONAL-FINAL]', {
+    symbol,
+    rawBeforeClamp: raw,
+    clampMin: 41,
+    clampMax: 94,
+    finalConfidence,
+  });
 
   console.log(
     `[Lux:InstitutionalAI] ${symbol} trend=${Math.round(trend)} momentum=${Math.round(momentum)} ` +

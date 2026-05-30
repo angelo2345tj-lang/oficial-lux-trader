@@ -4,6 +4,8 @@ import { logger } from '../logger';
 import { binanceProvider } from './providers/binanceProvider';
 import { finnhubProvider } from './providers/finnhubProvider';
 import { twelveDataProvider } from './providers/twelveDataProvider';
+import { bybitProvider } from './providers/bybitProvider';
+import { coinbaseProvider } from './providers/coinbaseProvider';
 import { MarketDataError, MarketProvider } from './providers/types';
 import {
   normalizeSymbol,
@@ -17,6 +19,8 @@ const PROVIDERS: Record<string, MarketProvider> = {
   binance: binanceProvider,
   twelvedata: twelveDataProvider,
   finnhub: finnhubProvider,
+  bybit: bybitProvider,
+  coinbase: coinbaseProvider,
 };
 
 function providerChain(symbol: string): MarketProvider[] {
@@ -33,10 +37,21 @@ async function fetchFromProvider(
   limit: number
 ): Promise<Candle[]> {
   const sym = normalizeSymbol(symbol);
+  
+  console.log('[DEBUG-CANDLES]', {
+    action: 'fetchFromProvider_START',
+    provider: provider.id,
+    symbol: sym,
+    timeframe,
+    requestedLimit: limit,
+  });
+
   const candles = await provider.fetchCandles(sym, timeframe, limit);
   candleCache.set(sym, timeframe, candles, provider.id);
   logger.info(`[Lux:Realtime] candles ${sym} TF${timeframe} via ${provider.id}`, 'marketData');
-  console.log('[DEBUG-PROVIDER-FETCH]', {
+  
+  console.log('[DEBUG-CANDLES]', {
+    action: 'fetchFromProvider_SUCCESS',
     provider: provider.id,
     symbol: sym,
     timeframe,
@@ -44,7 +59,10 @@ async function fetchFromProvider(
     returnedCandles: candles.length,
     firstCandle: candles[0],
     lastCandle: candles[candles.length - 1],
+    firstTimestamp: candles[0]?.timestamp,
+    lastTimestamp: candles[candles.length - 1]?.timestamp,
   });
+  
   return candles;
 }
 

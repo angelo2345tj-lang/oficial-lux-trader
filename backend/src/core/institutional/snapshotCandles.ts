@@ -2,6 +2,7 @@ import { fetchCandles } from '../../lib/services/marketData';
 import { candleCache } from '../../lib/services/candleCache';
 import { MarketDataError } from '../../lib/services/marketData/providers/types';
 import type { Candle } from '../../lib/services/indicators';
+import { fetchCandlesWithFallback } from '../../lib/services/marketData/MarketDataManager';
 
 const MIN_BARS = 20;
 
@@ -25,23 +26,40 @@ export async function resolveSnapshotPrimaryCandles(
   const cached = candleCache.get(sym, requestedTimeframe);
   const cacheCandles = cached?.length ?? 0;
 
+  console.log('[DEBUG-SNAPSHOT]', {
+    action: 'resolveSnapshotPrimaryCandles_START',
+    symbol: sym,
+    requestedTimeframe,
+    limit,
+    cacheCandles,
+    cachedFirst: cached?.[0],
+    cachedLast: cached?.[cached.length - 1],
+  });
+
   console.log(
     `[Lux:SnapshotBuild] symbol=${sym} requestedTimeframe=${requestedTimeframe} ` +
       `cacheCandles=${cacheCandles} providerTimeframe=${requestedTimeframe}`
   );
 
   try {
-    const candles = await fetchCandles(sym, requestedTimeframe, limit, true);
+    const result = await fetchCandlesWithFallback(sym, requestedTimeframe, limit);
+    const candles = result.candles;
     console.log(
-      `[Lux:SnapshotBuild] symbol=${sym} timeframe=${requestedTimeframe} candles=${candles.length} source=fetch`
+      `[Lux:SnapshotBuild] symbol=${sym} timeframe=${requestedTimeframe} candles=${candles.length} source=fetch provider=${result.provider}`
     );
-    console.log('[DEBUG-CANDLES-FETCH]', {
+    console.log('[DEBUG-SNAPSHOT]', {
+      action: 'resolveSnapshotPrimaryCandles_FETCH_SUCCESS',
       symbol: sym,
       timeframe: requestedTimeframe,
       candlesLength: candles.length,
       firstCandle: candles[0],
       lastCandle: candles[candles.length - 1],
+      firstTimestamp: candles[0]?.timestamp,
+      lastTimestamp: candles[candles.length - 1]?.timestamp,
+      source: 'fetch',
+      provider: result.provider,
     });
+    candleCache.set(sym, requestedTimeframe, candles, result.provider);
     return {
       candles,
       requestedTimeframe,
@@ -55,6 +73,14 @@ export async function resolveSnapshotPrimaryCandles(
       console.log(
         `[Lux:SnapshotBuild] symbol=${sym} timeframe=${requestedTimeframe} candles=${slice.length} source=cache-fallback`
       );
+      console.log('[DEBUG-SNAPSHOT]', {
+        action: 'resolveSnapshotPrimaryCandles_CACHE_FALLBACK',
+        symbol: sym,
+        timeframe: requestedTimeframe,
+        candlesLength: slice.length,
+        cacheCandles,
+        source: 'cache-fallback',
+      });
       return {
         candles: slice,
         requestedTimeframe,
@@ -67,12 +93,14 @@ export async function resolveSnapshotPrimaryCandles(
     console.log(
       `[Lux:SnapshotBuild] failed symbol=${sym} timeframe=${requestedTimeframe} cache=${cacheCandles} err=${msg}`
     );
-    console.log('[DEBUG-CANDLES-ERROR]', {
+    console.log('[DEBUG-SNAPSHOT]', {
+      action: 'resolveSnapshotPrimaryCandles_ERROR',
       symbol: sym,
       timeframe: requestedTimeframe,
       cacheCandles,
       errorMessage: msg,
       errorType: e instanceof Error ? e.constructor.name : typeof e,
+      errorStack: e instanceof Error ? e.stack : undefined,
     });
     throw e;
   }

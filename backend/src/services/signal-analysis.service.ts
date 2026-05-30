@@ -7,6 +7,7 @@ import { normalizeSymbol } from '../lib/utils/analyzePayload';
 import { blockReasonFromMarketError } from '../core/institutional/providerGate';
 import { fetchCandles } from '../lib/services/marketData';
 import { candleCache } from '../lib/services/candleCache';
+import { fetchCandlesWithFallback } from '../lib/services/marketData/MarketDataManager';
 
 export interface AnalyzeInput {
   symbol?: string;
@@ -137,13 +138,14 @@ export class SignalAnalysisService {
       return;
     }
     try {
-      console.log('[DEBUG] warmCandleCache - fetching candles from provider');
-      await fetchCandles(symbol, timeframe, 120, true);
+      console.log('[DEBUG] warmCandleCache - fetching candles from provider with fallback');
+      const result = await fetchCandlesWithFallback(symbol, timeframe, 120);
+      candleCache.set(symbol, timeframe, result.candles, result.provider);
       const afterFetch = candleCache.get(symbol, timeframe);
       console.log(
-        `[Lux:SnapshotBuild] warm-cache ${symbol} TF${timeframe} bars=${afterFetch?.length ?? 0}`
+        `[Lux:SnapshotBuild] warm-cache ${symbol} TF${timeframe} bars=${afterFetch?.length ?? 0} provider=${result.provider}`
       );
-      console.log('[DEBUG] warmCandleCache - fetch complete, candles=', afterFetch?.length ?? 0);
+      console.log('[DEBUG] warmCandleCache - fetch complete, candles=', afterFetch?.length ?? 0, 'provider=', result.provider);
     } catch (e) {
       console.log('[DEBUG] warmCandleCache - fetch failed, error=', e instanceof Error ? e.message : String(e));
       /* engine resolves via cache-fallback */

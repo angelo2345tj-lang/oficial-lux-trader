@@ -37,18 +37,60 @@ export class MarketSnapshotService {
     const requestedTimeframe = timeframe;
     const providerId = getProviderForSymbol(sym);
 
+    console.log('[DEBUG-SNAPSHOT]', {
+      action: 'MarketSnapshotService.build_START',
+      symbol: sym,
+      requestedTimeframe,
+      providerId,
+    });
+
     const primary = await resolveSnapshotPrimaryCandles(sym, requestedTimeframe, 120);
     const primaryCandles = primary.candles;
+
+    console.log('[DEBUG-SNAPSHOT]', {
+      action: 'MarketSnapshotService.build_PRIMARY_CANDLES',
+      symbol: sym,
+      requestedTimeframe,
+      primaryCandlesLength: primaryCandles.length,
+      source: primary.source,
+      providerTimeframe: primary.providerTimeframe,
+      firstCandle: primaryCandles[0],
+      lastCandle: primaryCandles[primaryCandles.length - 1],
+      firstTimestamp: primaryCandles[0]?.timestamp,
+      lastTimestamp: primaryCandles[primaryCandles.length - 1]?.timestamp,
+    });
 
     let mtf: Awaited<ReturnType<typeof fetchMTFExtended>>;
     try {
       mtf = await fetchMTFExtended(sym);
-    } catch {
+      console.log('[DEBUG-SNAPSHOT]', {
+        action: 'MarketSnapshotService.build_MTF_SUCCESS',
+        symbol: sym,
+        m5: mtf.m5.length,
+        m15: mtf.m15.length,
+        h1: mtf.h1.length,
+        h4: mtf.h4.length,
+      });
+    } catch (e) {
+      console.log('[DEBUG-SNAPSHOT]', {
+        action: 'MarketSnapshotService.build_MTF_FALLBACK',
+        symbol: sym,
+        error: e instanceof Error ? e.message : String(e),
+      });
       const m5 = await resolveSnapshotPrimaryCandles(sym, '5', 80);
       mtf = { m1: m5.candles, m5: m5.candles, m15: m5.candles, h1: m5.candles, h4: m5.candles };
     }
 
     const barTs = closedBarTimestamp(primaryCandles, requestedTimeframe);
+    
+    console.log('[DEBUG-SNAPSHOT]', {
+      action: 'MarketSnapshotService.build_BAR_TIMESTAMP',
+      symbol: sym,
+      requestedTimeframe,
+      barTs,
+      candlesLength: primaryCandles.length,
+    });
+
     assertValidSnapshotBar(sym, requestedTimeframe, primaryCandles, barTs);
 
     const snapshotTimeframe = requestedTimeframe;
@@ -65,6 +107,26 @@ export class MarketSnapshotService {
         `snapshotTimeframe=${snapshotTimeframe} providerTimeframe=${primary.providerTimeframe} ` +
         `candles=${primaryCandles.length} id=${snapshotId} mtf m5=${mtf.m5.length} h1=${mtf.h1.length}`
     );
+
+    console.log('[DEBUG-SNAPSHOT]', {
+      action: 'MarketSnapshotService.build_SUCCESS',
+      symbol: sym,
+      requestedTimeframe,
+      snapshotTimeframe,
+      snapshotId,
+      snapshotTimestamp,
+      marketSequence,
+      providerId,
+      candleSource,
+      primaryCandlesLength: primaryCandles.length,
+      mtfLengths: {
+        m5: mtf.m5.length,
+        m15: mtf.m15.length,
+        h1: mtf.h1.length,
+        h4: mtf.h4.length,
+      },
+      lastClose: primaryCandles[primaryCandles.length - 1]?.close ?? 0,
+    });
 
     return {
       snapshotId,
