@@ -188,21 +188,25 @@ async function requestInstitutionalAnalyze(
 
   return safeApiCallOptional(async () => {
     console.log('[Lux:API] calling institutional API endpoint');
+    const requestBody = {
+      symbol: payload.symbol,
+      asset: payload.symbol,
+      timeframe: payload.timeframe,
+      balance: payload.balance,
+      riskPercent: payload.riskPercent,
+      livePrice: payload.livePrice,
+      timingMode: payload.timingMode,
+      streamLive: true,
+      analyzeOrigin: origin,
+    };
+    console.log('[DEBUG] payload enviado', JSON.stringify(requestBody, null, 2));
+    console.log('[DEBUG] symbol normalizado', payload.symbol);
+    console.log('[DEBUG] timeframe normalizado', payload.timeframe);
     const res = await withRequestDedup(dedupKey, (signal) =>
       apiFetch(endpoints.signalsAnalyze(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symbol: payload.symbol,
-          asset: payload.symbol,
-          timeframe: payload.timeframe,
-          balance: payload.balance,
-          riskPercent: payload.riskPercent,
-          livePrice: payload.livePrice,
-          timingMode: payload.timingMode,
-          streamLive: true,
-          analyzeOrigin: origin,
-        }),
+        body: JSON.stringify(requestBody),
         timeoutMs: API_TIMEOUT_MS,
         retries: 0,
         retryDelayMs: 0,
@@ -224,6 +228,7 @@ async function requestInstitutionalAnalyze(
       snapshotId?: string;
       candleCount?: number;
     };
+    console.log('[DEBUG] resposta bruta api', JSON.stringify(data, null, 2));
     console.log('[Lux:API] API data - status=', data.status, ' blockReason=', data.blockReason, ' snapshotId=', data.snapshotId, ' candleCount=', data.candleCount);
 
     if (!res.ok) {
@@ -292,7 +297,9 @@ async function analyzeCentralized(
 
   if (shouldFallback) {
     console.log('[Lux:Analyze] API failed, attempting local fallback');
+    console.log('[DEBUG] candles disponíveis para fallback local - symbol=', body.symbol, ' timeframe=', body.timeframe);
     const local = await analyzeLocal(body);
+    console.log('[DEBUG] resultado local fallback - status=', local.status, ' blockReason=', local.blockReason, ' signal=', !!local.signal);
     if (generation !== analyzeGeneration) {
       console.log('[Lux:Analyze] local fallback superseded - generation mismatch');
       return {

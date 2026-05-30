@@ -41,12 +41,16 @@ export class SignalAnalysisService {
     const streamLive = input.streamLive !== false;
     const started = Date.now();
 
+    console.log('[DEBUG] backend analyze - symbol=', symbol, ' timeframe=', input.timeframe, ' streamLive=', streamLive);
+
     try {
       const tf = input.timeframe || '60';
       this.log.log(
         `[Lux:InstitutionalAI] analyze ${symbol} tf=${tf} origin=${input.analyzeOrigin ?? 'UNKNOWN'}`
       );
       await this.warmCandleCache(symbol, tf);
+      const cached = candleCache.get(symbol, tf);
+      console.log('[DEBUG] candles no cache após warmCandleCache - symbol=', symbol, ' timeframe=', tf, ' count=', cached?.length ?? 0);
 
       const payload = await InstitutionalSignalEngine.analyze({
         symbol,
@@ -58,6 +62,8 @@ export class SignalAnalysisService {
         streamLive,
         analyzeOrigin: input.analyzeOrigin,
       });
+
+      console.log('[DEBUG] InstitutionalSignalEngine.analyze result - status=', payload.status, ' blockReason=', payload.blockReason, ' candleCount=', payload.candleCount, ' snapshotId=', payload.snapshotId);
 
       const rawSignal = payload.signal;
       const serialized = rawSignal
@@ -125,13 +131,21 @@ export class SignalAnalysisService {
 
   private async warmCandleCache(symbol: string, timeframe: string): Promise<void> {
     const cached = candleCache.get(symbol, timeframe);
-    if (cached && cached.length >= 20) return;
+    console.log('[DEBUG] warmCandleCache - symbol=', symbol, ' timeframe=', timeframe, ' cached=', cached?.length ?? 0);
+    if (cached && cached.length >= 20) {
+      console.log('[DEBUG] warmCandleCache - cache already has sufficient candles');
+      return;
+    }
     try {
+      console.log('[DEBUG] warmCandleCache - fetching candles from provider');
       await fetchCandles(symbol, timeframe, 120, true);
+      const afterFetch = candleCache.get(symbol, timeframe);
       console.log(
-        `[Lux:SnapshotBuild] warm-cache ${symbol} TF${timeframe} bars=${candleCache.get(symbol, timeframe)?.length ?? 0}`
+        `[Lux:SnapshotBuild] warm-cache ${symbol} TF${timeframe} bars=${afterFetch?.length ?? 0}`
       );
-    } catch {
+      console.log('[DEBUG] warmCandleCache - fetch complete, candles=', afterFetch?.length ?? 0);
+    } catch (e) {
+      console.log('[DEBUG] warmCandleCache - fetch failed, error=', e instanceof Error ? e.message : String(e));
       /* engine resolves via cache-fallback */
     }
   }
